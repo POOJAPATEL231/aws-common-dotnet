@@ -78,6 +78,29 @@ namespace Persistence.Common.AWS.DependencyInjection
             return services;
         }
 
+        /// <summary>
+        /// Registers the transactional outbox: the OutboxMessage set/providers, its table
+        /// provider, and the background dispatcher that publishes pending messages to the
+        /// registered <see cref="Application.Common.Event.IIntegrationEventPublisher"/>.
+        /// </summary>
+        public static IServiceCollection AddDynamoDbOutbox(this IServiceCollection services, Outbox.OutboxOptions? options = null)
+        {
+            services.AddScoped<IDynamoDbDocProvider<Outbox.OutboxMessage>, DynamoDbDocProvider<Outbox.OutboxMessage>>();
+            services.AddScoped<IDynamoDbSet<Outbox.OutboxMessage>, DynamoDbSet<Outbox.OutboxMessage>>();
+            services.AddSingleton(typeof(IDynamoDbTableProvider), typeof(DynamoDbTableProvider<Outbox.OutboxMessage>));
+            services.AddSingleton(options ?? new Outbox.OutboxOptions());
+            services.AddHostedService<Outbox.OutboxDispatcherService>();
+            return services;
+        }
+
+        /// <summary>Registers the DynamoDB-backed distributed lock.</summary>
+        public static IServiceCollection AddDynamoDbDistributedLock(this IServiceCollection services, Locking.DynamoDbLockOptions? options = null)
+        {
+            services.AddSingleton(options ?? new Locking.DynamoDbLockOptions());
+            services.AddSingleton<Application.Common.Locking.IDistributedLock, Locking.DynamoDbDistributedLock>();
+            return services;
+        }
+
         public static async Task<IApplicationBuilder> UsePersistenceDynamoAsync<TContext>(this IApplicationBuilder app, DynamoDbRepositoryOptions dynamoOptions)
              where TContext : BaseDynamoDbContext
         {

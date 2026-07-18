@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **New service integrations (Tier 1)**: SES email (`IEmailService`), S3 presigned
+  upload/download URLs, EventBridge publishing (`IIntegrationEventPublisher`) and
+  EventBridge Scheduler (`IScheduler`), CloudWatch custom metrics via Embedded
+  Metric Format (`IMetrics`), AWS AppConfig feature flags.
+- **New service integrations (Tier 2)**: Step Functions (`IWorkflowClient`),
+  Kinesis + Firehose streaming (`IStreamPublisher`), Cognito user administration
+  (`IIdentityService`), DynamoDB-backed distributed lock (`IDistributedLock`),
+  transactional outbox (`AddOutboxMessage` + `OutboxDispatcherService`), and an
+  EF Core SQL repository (`BaseSqlDbContext`/`SqlRepository`) for relational stores.
+- `IFeatureManager` was an empty marker interface - now defines the real
+  feature-flag surface shared by the SSM, AppConfig and local implementations.
 - **Global Secondary Index support**: declare indexes via EF `HasIndex(...)` or
   `HasGlobalSecondaryIndex(...)`; predicates on index keys are promoted from
   full-table Scans to index Queries, and `CreateTableAsync` provisions the GSIs.

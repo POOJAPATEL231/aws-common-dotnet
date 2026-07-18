@@ -15,8 +15,8 @@ auth helpers, and KMS-backed crypto utilities.
 | **Domain.Common** | Base entities (`DocEntity`, `BaseEntity`), domain/integration events, settings records — zero AWS dependencies |
 | **Application.Common** | Abstractions: `ICache`, `IFileProvider`, event-bus subscription managers, identity helpers |
 | **Utils.Common** | Crypto (AES, PBKDF2 password hashing, secret wrapping), JSON/byte/string utilities |
-| **Infrastructure.Common** | AWS implementations: SNS/SQS event bus, Redis + distributed cache, S3 file provider, Cognito HTTP client, X-Ray middleware, CloudWatch/Serilog logging, feature flags |
-| **Persistence.Common** | **DynamoDB EF-style ORM**: `BaseDynamoDbContext`, `IDynamoDbSet<T>`, LINQ→DynamoDB expression translation, change tracking, transactional `SaveChangesAsync`, table auto-creation, repository base |
+| **Infrastructure.Common** | AWS implementations: SNS/SQS + EventBridge eventing, SES email, Redis + distributed cache, S3 file provider (incl. presigned URLs), Cognito auth + user administration, Step Functions workflows, Kinesis/Firehose streaming, EventBridge Scheduler, CloudWatch metrics (EMF) + Serilog logging, X-Ray middleware, SSM/AppConfig feature flags |
+| **Persistence.Common** | **DynamoDB EF-style ORM**: `BaseDynamoDbContext`, `IDynamoDbSet<T>`, LINQ→DynamoDB expression translation, change tracking, transactional `SaveChangesAsync` with ETag concurrency, GSI queries, table auto-creation, transactional outbox, distributed lock, plus an EF Core SQL repository (`BaseSqlDbContext`/`SqlRepository`) for relational stores |
 
 ## Quick start: DynamoDB the EF way
 
@@ -97,13 +97,25 @@ Requires the .NET 8 SDK.
 └── samples/                 # sample app (CloudIntegrator) showing usage
 ```
 
+## Service coverage
+
+**Eventing & messaging:** SNS/SQS event bus (+Lambda dispatch), EventBridge publisher, EventBridge Scheduler, transactional outbox
+**Storage & data:** DynamoDB (EF-style ORM), S3 (+presigned URLs), SQL via EF Core (`SqlRepository`), ElastiCache/Redis
+**Communication:** SES email (simple + templated)
+**Identity & security:** Cognito (tokens + user administration), Secrets Manager, KMS, AES crypto utilities
+**Operations:** CloudWatch Logs (Serilog) + custom metrics (EMF), X-Ray tracing, SSM Parameter Store config, feature flags (SSM or AppConfig), distributed lock
+**Workflows & streaming:** Step Functions, Kinesis Data Streams, Data Firehose
+**Local development:** LocalStack switch for every AWS client
+
 ## Roadmap
 
 - [x] GSI support in the DynamoDB query pipeline (`IndexName` selection)
 - [x] Optimistic concurrency via ETag conditional writes
+- [x] SES, EventBridge (+Scheduler), CloudWatch metrics, AppConfig flags, presigned URLs
+- [x] Step Functions, Kinesis/Firehose, Cognito admin, distributed lock, transactional outbox, SQL repository
 - [ ] Value-converter read path (`ConvertFromProvider`)
 - [ ] TTL attribute mapping (`ttl`) wiring
-- [ ] DynamoDB Local integration test suite
+- [ ] DynamoDB Local / LocalStack integration test suite
 - [ ] Azure implementations behind the same abstractions
 
 ## Contributing

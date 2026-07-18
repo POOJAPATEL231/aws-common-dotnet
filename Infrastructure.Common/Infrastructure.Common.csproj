@@ -8,7 +8,15 @@
 
 	<ItemGroup>
 		<PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="6.2.1" />
+		<PackageReference Include="AWSSDK.AppConfigData" Version="3.7.400.57" />
+		<PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="3.7.400.57" />
+		<PackageReference Include="AWSSDK.EventBridge" Version="3.7.400.57" />
+		<PackageReference Include="AWSSDK.Kinesis" Version="3.7.400.57" />
+		<PackageReference Include="AWSSDK.KinesisFirehose" Version="3.7.400.57" />
 		<PackageReference Include="AWSSDK.KeyManagementService" Version="3.7.400.13" />
+		<PackageReference Include="AWSSDK.Scheduler" Version="3.7.400.57" />
+		<PackageReference Include="AWSSDK.SimpleEmailV2" Version="3.7.400.57" />
+		<PackageReference Include="AWSSDK.StepFunctions" Version="3.7.400.57" />
 		<PackageReference Include="AWSSDK.S3" Version="3.7.402.4" />
 		<PackageReference Include="AWSSDK.SecretsManager" Version="3.7.400.13" />
 		<PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.400.57" />

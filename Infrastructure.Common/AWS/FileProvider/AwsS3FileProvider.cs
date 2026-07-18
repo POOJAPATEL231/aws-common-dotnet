@@ -190,6 +190,39 @@ namespace Infrastructure.Common.AWS.FileProvider
             return true;
         }
 
+        public async Task<string> GetPresignedDownloadUrlAsync(string path, TimeSpan validFor, CancellationToken cancellationToken = default)
+        {
+            ParseFilePath(path, out string bucketName, out string objectKey);
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = bucketName,
+                Key = objectKey,
+                Verb = HttpVerb.GET,
+                Expires = DateTime.UtcNow.Add(validFor)
+            };
+
+            return await _amazonS3Client.GetPreSignedURLAsync(request);
+        }
+
+        public async Task<string> GetPresignedUploadUrlAsync(string path, TimeSpan validFor, string? contentType = null, CancellationToken cancellationToken = default)
+        {
+            ParseFilePath(path, out string bucketName, out string objectKey);
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = bucketName,
+                Key = objectKey,
+                Verb = HttpVerb.PUT,
+                Expires = DateTime.UtcNow.Add(validFor)
+            };
+
+            if (!string.IsNullOrEmpty(contentType))
+            {
+                request.ContentType = contentType;
+            }
+
+            return await _amazonS3Client.GetPreSignedURLAsync(request);
+        }
+
         #endregion
 
         #region Private Methods

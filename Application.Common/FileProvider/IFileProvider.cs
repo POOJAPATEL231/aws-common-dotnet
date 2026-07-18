@@ -39,5 +39,18 @@ namespace Application.Common.FileProvider
 
         /// <summary>Uploads a set of files to a container under an optional key prefix.</summary>
         Task<bool> UploadAsync(string containerName, string? prefix, List<UploadedFile> files, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates a time-limited URL that allows downloading the object directly from
+        /// storage without further authentication.
+        /// </summary>
+        Task<string> GetPresignedDownloadUrlAsync(string path, TimeSpan validFor, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates a time-limited URL that allows uploading directly to storage (HTTP PUT)
+        /// without further authentication. When <paramref name="contentType"/> is set, the
+        /// upload request must send the same Content-Type header.
+        /// </summary>
+        Task<string> GetPresignedUploadUrlAsync(string path, TimeSpan validFor, string? contentType = null, CancellationToken cancellationToken = default);
     }
 }
