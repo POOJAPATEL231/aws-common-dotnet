@@ -1,0 +1,43 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+artifacts/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Test results / coverage
+TestResults/
+[Cc]overage/
+*.trx
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages.config
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Local secrets - never commit credentials
+appsettings.*.local.json
+secrets.json
+*.pfx
+
+# Local AI tooling settings
+.claude/

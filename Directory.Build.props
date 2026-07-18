@@ -1,0 +1,35 @@
+<Project>
+
+  <!-- Shared settings for every project in the repository. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- XML docs power IntelliSense for consumers. CS1591 (missing doc comment)
+         is suppressed until the public surface is fully documented. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- NuGet package metadata shared by all packable library projects. -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Authors>Pooja</Authors>
+    <Product>AWS Common Libraries</Product>
+    <Copyright>Copyright (c) 2026 Pooja and contributors</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile Condition="Exists('$(MSBuildProjectDirectory)\README.md')">README.md</PackageReadmeFile>
+    <PackageTags>aws;dynamodb;s3;sqs;sns;eventbus;redis;cache;dotnet</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <!-- Set RepositoryUrl / PackageProjectUrl once the GitHub repository exists. -->
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\README.md')">
+    <None Include="$(MSBuildProjectDirectory)\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

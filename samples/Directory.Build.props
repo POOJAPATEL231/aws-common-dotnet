@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- Sample projects are never packed or published to NuGet. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>
