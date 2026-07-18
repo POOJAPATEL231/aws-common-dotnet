@@ -94,8 +94,40 @@ Requires the .NET 8 SDK.
 ├── Infrastructure.Common/   # AWS infrastructure implementations
 ├── Persistence.Common/      # DynamoDB EF-style persistence
 ├── Common.Tests/            # unit tests for the libraries
-└── samples/                 # sample app (CloudIntegrator) showing usage
+└── samples/
+    ├── AwsShowcase/         # ⭐ full clean-architecture reference app (see below)
+    └── CloudIntegrator*/    # minimal legacy sample
 ```
+
+## ⭐ AwsShowcase - the reference application
+
+`samples/AwsShowcase` is a complete clean-architecture application that exercises
+**every service in the suite**, structured the way a production system would be:
+
+```
+AwsShowcase.Entity        # domain: Order aggregate + integration event (no dependencies)
+AwsShowcase.Core          # CQRS: commands/queries/handlers, DTOs, MediatR pipeline
+                          #   behaviors: logging → Polly retry → read-through cache
+                          #   → cache invalidation (queries cached, commands invalidate)
+AwsShowcase.Integration   # DynamoDB context/repository (Unit of Work), transactional
+                          #   outbox bridge, all AWS DI wiring (LocalStack-aware)
+AwsShowcase.API           # thin controllers: one Swagger endpoint per library method
+AwsShowcase.Tests         # unit tests for handlers and pipeline behaviors
+```
+
+Run it:
+
+```bash
+docker run -d -p 4566:4566 localstack/localstack   # local AWS
+dotnet run --project samples/AwsShowcase/AwsShowcase.API
+# open the Swagger UI shown in the console
+```
+
+Patterns demonstrated: CQRS with MediatR, cache-aside via pipeline behaviors
+(`ICacheableQuery` / `ICacheInvalidatingRequest`), Polly retries on transient
+faults (`IRetryableRequest`), Unit of Work with atomic saves, transactional
+outbox, GSI queries via EF `HasIndex`, DTO separation, and ports-and-adapters
+so Core never references AWS directly.
 
 ## Service coverage
 

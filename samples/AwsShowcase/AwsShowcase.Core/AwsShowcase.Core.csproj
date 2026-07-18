@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Polly" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AwsShowcase.Entity\AwsShowcase.Entity.csproj" />
+    <ProjectReference Include="..\..\..\Application.Common\Application.Common.csproj" />
+    <ProjectReference Include="..\..\..\Persistence.Common\Persistence.Common.csproj" />
+  </ItemGroup>
+
+</Project>
