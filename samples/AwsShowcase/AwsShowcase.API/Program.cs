@@ -24,6 +24,14 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+// X-Ray distributed tracing middleware from the library (off by default locally -
+// requires the X-Ray daemon/sidecar to receive segments).
+if (app.Configuration.GetValue<bool>("Showcase:EnableXRay"))
+{
+    app.UseMiddleware<Infrastructure.Common.AWS.XRay.XRayMiddleware>();
+}
+
 app.MapControllers();
 
 // Create the DynamoDB tables (incl. the CustomerEmail GSI) on startup. Skipped
