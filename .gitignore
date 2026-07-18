@@ -38,6 +38,3 @@ Thumbs.db
 appsettings.*.local.json
 secrets.json
 *.pfx
-
-# Local AI tooling settings
-.claude/
