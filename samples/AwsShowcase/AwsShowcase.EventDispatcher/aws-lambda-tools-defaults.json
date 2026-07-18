@@ -1,0 +1,16 @@
+{
+  "Information": [
+    "Deployment defaults for the Amazon.Lambda.Tools CLI (dotnet lambda deploy-function).",
+    "The function name matches AwsInfraSettings:EventDispatcherFunctionName so the",
+    "event bus wires it as the SQS event source automatically."
+  ],
+  "profile": "default",
+  "region": "us-east-1",
+  "configuration": "Release",
+  "function-runtime": "dotnet8",
+  "function-memory-size": 256,
+  "function-timeout": 30,
+  "function-handler": "AwsShowcase.EventDispatcher::AwsShowcase.EventDispatcher.Function::FunctionHandler",
+  "function-name": "QueueEventDispatcher",
+  "function-role": "arn:aws:iam::YOUR_ACCOUNT_ID:role/QueueEventDispatcherRole"
+}

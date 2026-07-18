@@ -155,6 +155,20 @@ namespace Infrastructure.Common.DependencyInjection
             services.AddSingleton<IEventBusSubscriptionsManager, InMemoryEventBusSubscriptionsManager>();
             services.AddScoped<IEventBus, AwsEventBus>();
             services.AddScoped<IQueueService, SimpleQueueService>();
+            services.AddScoped<ISqsMessageDispatcher, SqsMessageDispatcher>();
+            return services;
+        }
+
+        /// <summary>
+        /// Consumption-side registration for hosts that only dispatch queued events to
+        /// handlers (e.g. the QueueEventDispatcher Lambda): the cache-backed
+        /// subscriptions manager plus <see cref="ISqsMessageDispatcher"/>. Requires an
+        /// <see cref="ICache"/> registration (memory or Redis).
+        /// </summary>
+        public static IServiceCollection AddSqsEventDispatch(this IServiceCollection services)
+        {
+            services.AddScoped<IAsyncEventBusSubscriptionsManager, EventBusSubscriptionsManager>();
+            services.AddScoped<ISqsMessageDispatcher, SqsMessageDispatcher>();
             return services;
         }
 

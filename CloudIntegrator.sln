@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwsShowcase.API", "samples\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwsShowcase.Tests", "samples\AwsShowcase\AwsShowcase.Tests\AwsShowcase.Tests.csproj", "{302A3D24-56AF-4B09-A054-EBDAFA98A5FD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwsShowcase.EventDispatcher", "samples\AwsShowcase\AwsShowcase.EventDispatcher\AwsShowcase.EventDispatcher.csproj", "{3740D81C-3A2A-4E48-B44E-61C51C019A7F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -213,6 +215,18 @@ Global
 		{302A3D24-56AF-4B09-A054-EBDAFA98A5FD}.Release|x64.Build.0 = Release|Any CPU
 		{302A3D24-56AF-4B09-A054-EBDAFA98A5FD}.Release|x86.ActiveCfg = Release|Any CPU
 		{302A3D24-56AF-4B09-A054-EBDAFA98A5FD}.Release|x86.Build.0 = Release|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Debug|x64.Build.0 = Debug|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Debug|x86.Build.0 = Debug|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Release|x64.ActiveCfg = Release|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Release|x64.Build.0 = Release|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Release|x86.ActiveCfg = Release|Any CPU
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -227,5 +241,6 @@ Global
 		{94D0B327-6036-46EB-883F-A7A1BBA0B438} = {8D6C6E9D-7676-BCAA-2B4C-102ADE326E14}
 		{87D76D39-13A9-4CDD-9CA0-C7F977F140D6} = {8D6C6E9D-7676-BCAA-2B4C-102ADE326E14}
 		{302A3D24-56AF-4B09-A054-EBDAFA98A5FD} = {8D6C6E9D-7676-BCAA-2B4C-102ADE326E14}
+		{3740D81C-3A2A-4E48-B44E-61C51C019A7F} = {8D6C6E9D-7676-BCAA-2B4C-102ADE326E14}
 	EndGlobalSection
 EndGlobal
