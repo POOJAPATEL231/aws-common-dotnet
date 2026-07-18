@@ -25,7 +25,8 @@
     <PackageReadmeFile Condition="Exists('$(MSBuildProjectDirectory)\README.md')">README.md</PackageReadmeFile>
     <PackageTags>aws;dynamodb;s3;sqs;sns;eventbus;redis;cache;dotnet</PackageTags>
     <RepositoryType>git</RepositoryType>
-    <!-- Set RepositoryUrl / PackageProjectUrl once the GitHub repository exists. -->
+    <RepositoryUrl>https://github.com/POOJAPATEL231/aws-common-dotnet</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/POOJAPATEL231/aws-common-dotnet</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\README.md')">
