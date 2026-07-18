@@ -167,8 +167,25 @@ namespace Infrastructure.Common.DependencyInjection
         /// </summary>
         public static IServiceCollection AddSqsEventDispatch(this IServiceCollection services)
         {
-            services.AddScoped<IAsyncEventBusSubscriptionsManager, EventBusSubscriptionsManager>();
-            services.AddScoped<ISqsMessageDispatcher, SqsMessageDispatcher>();
+            Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+                .TryAddScoped<IAsyncEventBusSubscriptionsManager, EventBusSubscriptionsManager>(services);
+            Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
+                .TryAddScoped<ISqsMessageDispatcher, SqsMessageDispatcher>(services);
+            return services;
+        }
+
+        /// <summary>
+        /// In-process consumption: a background service that long-polls the event-bus
+        /// queues and dispatches messages to the registered handlers - the local/container
+        /// alternative to the QueueEventDispatcher Lambda. Options bind from the
+        /// "SqsConsumer" section (event names, poll timing, backoff).
+        /// </summary>
+        public static IServiceCollection AddSqsConsumer(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddAwsServiceWithConfiguration<IAmazonSQS>(configuration);
+            services.AddSingleton(configuration.GetSection("SqsConsumer").Get<SqsConsumerOptions>() ?? new SqsConsumerOptions());
+            services.AddSqsEventDispatch();
+            services.AddHostedService<SqsConsumerService>();
             return services;
         }
 

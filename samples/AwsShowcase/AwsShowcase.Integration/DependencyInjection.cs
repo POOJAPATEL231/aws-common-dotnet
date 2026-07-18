@@ -102,6 +102,12 @@ public static class DependencyInjection
         services.AddTransient<OrderCreatedEventHandler>();
         services.AddTransient<DynamicLoggingEventHandler>();
 
+        // Consumption: in-process SQS consumer (library BackgroundService) polls the
+        // event queues and invokes the handlers - the local/container alternative to
+        // the QueueEventDispatcher Lambda. Subscriptions are registered at startup.
+        services.AddSqsConsumer(configuration);
+        services.AddHostedService<EventBusInitializer>();
+
         return services;
     }
 }

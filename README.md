@@ -131,7 +131,9 @@ so Core never references AWS directly.
 
 ## Service coverage
 
-**Eventing & messaging:** SNS/SQS event bus (+Lambda dispatch), EventBridge publisher, EventBridge Scheduler, transactional outbox
+**Eventing & messaging:** SNS/SQS event bus with two consumption modes — in-process
+`SqsConsumerService` (local/containers) or the `QueueEventDispatcher` Lambda
+(serverless) — plus EventBridge publisher, EventBridge Scheduler, transactional outbox
 **Storage & data:** DynamoDB (EF-style ORM), S3 (+presigned URLs), SQL via EF Core (`SqlRepository`), ElastiCache/Redis
 **Communication:** SES email (simple + templated)
 **Identity & security:** Cognito (tokens + user administration), Secrets Manager, KMS, AES crypto utilities

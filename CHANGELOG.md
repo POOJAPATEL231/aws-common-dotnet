@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Event consumption (both modes)**: `SqsMessageDispatcher` routes queued messages
+  to subscribed typed/dynamic handlers; hosted either by the in-process
+  `SqsConsumerService` (`AddSqsConsumer`, long-polling with DLQ-friendly failure
+  semantics - ideal for local/LocalStack and container deployments) or by the
+  `QueueEventDispatcher` Lambda sample (partial batch responses) that the bus
+  wires as the SQS event source.
 - **New service integrations (Tier 1)**: SES email (`IEmailService`), S3 presigned
   upload/download URLs, EventBridge publishing (`IIntegrationEventPublisher`) and
   EventBridge Scheduler (`IScheduler`), CloudWatch custom metrics via Embedded
