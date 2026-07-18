@@ -14,8 +14,14 @@ namespace Infrastructure.Common.AWS.Eventbus
     /// </summary>
     public interface ISqsMessageDispatcher
     {
-        /// <summary>Dispatches one SQS message body; true when at least one handler ran.</summary>
-        Task<bool> DispatchAsync(string sqsMessageBody, CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Dispatches one SQS message. When <paramref name="eventNameHint"/> is provided
+        /// (raw message delivery - the event name arrives as an SQS "Subject" message
+        /// attribute and the body is the raw event JSON) it is used directly; otherwise
+        /// the body is parsed as an SNS notification envelope. Returns true when at least
+        /// one handler ran.
+        /// </summary>
+        Task<bool> DispatchAsync(string sqsMessageBody, string? eventNameHint = null, CancellationToken cancellationToken = default);
     }
 
     public class SqsMessageDispatcher : ISqsMessageDispatcher
@@ -32,11 +38,21 @@ namespace Infrastructure.Common.AWS.Eventbus
             _logger = logger;
         }
 
-        public async Task<bool> DispatchAsync(string sqsMessageBody, CancellationToken cancellationToken = default)
+        public async Task<bool> DispatchAsync(string sqsMessageBody, string? eventNameHint = null, CancellationToken cancellationToken = default)
         {
-            if (!TryUnwrapSnsEnvelope(sqsMessageBody, out var eventName, out var payload))
+            string eventName;
+            string payload;
+
+            if (!string.IsNullOrEmpty(eventNameHint))
             {
-                _logger.LogWarning("SQS message is not an SNS notification with a Subject attribute; cannot route it to handlers.");
+                // Raw message delivery: the body IS the event JSON, the name came from
+                // the SQS "Subject" message attribute.
+                eventName = eventNameHint;
+                payload = sqsMessageBody;
+            }
+            else if (!TryUnwrapSnsEnvelope(sqsMessageBody, out eventName, out payload))
+            {
+                _logger.LogWarning("SQS message has no Subject attribute and is not an SNS envelope; cannot route it to handlers.");
                 return false;
             }
 

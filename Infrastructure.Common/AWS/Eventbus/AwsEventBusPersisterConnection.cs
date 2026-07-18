@@ -135,16 +135,14 @@ namespace Infrastructure.Common.AWS.Eventbus
             _eventBusOptions.TryGetValue(queueName, out var queueSetting);
             queueSetting ??= Constants.DefaultAwsEventBusQueueOptions;
 
-            var dlqAttributes = new Dictionary<string, string>();
+            var dlqAttributes = queueSetting?.DlqSetting is not null
+                ? CreateAttributes(queueSetting.DlqSetting, null)
+                : new Dictionary<string, string>();
 
-            if (queueSetting is not null)
-            {
-                var dlqSetting = queueSetting.DlqSetting;
-                if (dlqSetting is not null)
-                {
-                    dlqAttributes = CreateAttributes(dlqSetting, null);
-                }
-            }
+            // A FIFO queue's DLQ must itself be FIFO - guarantee the FIFO attributes for
+            // any .fifo-named queue even when no explicit DlqSetting is configured,
+            // otherwise SQS rejects the .fifo name (InvalidParameterValue).
+            EnsureFifoAttributes(dlqName, dlqAttributes);
 
             var dlqResponse = await _sqsClient.CreateQueueAsync(new CreateQueueRequest
             {
@@ -156,11 +154,11 @@ namespace Infrastructure.Common.AWS.Eventbus
 
             var dlqArn = await GetQueueArnAsync(dlqResponse.QueueUrl, cancellationToken);
 
-            var attributes = new Dictionary<string, string>();
-            if (queueSetting is not null)
-            {
-                attributes = CreateAttributes(queueSetting, dlqArn);
-            }
+            var attributes = queueSetting is not null
+                ? CreateAttributes(queueSetting, dlqArn)
+                : new Dictionary<string, string>();
+
+            EnsureFifoAttributes(queueName, attributes);
 
             var queueResponse = await _sqsClient.CreateQueueAsync(new CreateQueueRequest
             {
@@ -205,6 +203,22 @@ namespace Infrastructure.Common.AWS.Eventbus
             _logger.LogDebug("Subscribed SQS queue {QueueArn} to SNS topic {TopicArn}", queueArn, topicArn);
 
             return queueUrl;
+        }
+
+        /// <summary>
+        /// Guarantees the attributes a FIFO queue requires. A queue whose name ends in
+        /// ".fifo" MUST be created with FifoQueue=true or SQS rejects the name; this
+        /// backstops queue/DLQ creation paths that may otherwise omit the attribute.
+        /// </summary>
+        private static void EnsureFifoAttributes(string queueName, Dictionary<string, string> attributes)
+        {
+            if (!queueName.EndsWith(".fifo", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            attributes.TryAdd("FifoQueue", "true");
+            attributes.TryAdd("ContentBasedDeduplication", "true");
         }
 
         private static Dictionary<string, string> CreateAttributes(AwsEventBusQueueOptions queueSetting, string? dlqArn)

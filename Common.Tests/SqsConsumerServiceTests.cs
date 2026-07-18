@@ -52,12 +52,12 @@ namespace Common.Tests
         {
             var (service, sqs, dispatcher) = CreateHarness(
                 new Message { MessageId = "m1", Body = "{}", ReceiptHandle = "r1" });
-            dispatcher.Setup(d => d.DispatchAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            dispatcher.Setup(d => d.DispatchAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
             var received = await service.PollQueueOnceAsync("ordercreated_Queue.fifo", CancellationToken.None);
 
             Assert.Equal(1, received);
-            dispatcher.Verify(d => d.DispatchAsync("{}", It.IsAny<CancellationToken>()), Times.Once);
+            dispatcher.Verify(d => d.DispatchAsync("{}", It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
             sqs.Verify(c => c.DeleteMessageAsync("http://sqs/queue", "r1", It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -67,8 +67,8 @@ namespace Common.Tests
             var (service, sqs, dispatcher) = CreateHarness(
                 new Message { MessageId = "ok", Body = "good", ReceiptHandle = "r-ok" },
                 new Message { MessageId = "bad", Body = "boom", ReceiptHandle = "r-bad" });
-            dispatcher.Setup(d => d.DispatchAsync("good", It.IsAny<CancellationToken>())).ReturnsAsync(true);
-            dispatcher.Setup(d => d.DispatchAsync("boom", It.IsAny<CancellationToken>()))
+            dispatcher.Setup(d => d.DispatchAsync("good", It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            dispatcher.Setup(d => d.DispatchAsync("boom", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
                       .ThrowsAsync(new InvalidOperationException("handler exploded"));
 
             var received = await service.PollQueueOnceAsync("ordercreated_Queue.fifo", CancellationToken.None);
@@ -85,7 +85,7 @@ namespace Common.Tests
         {
             var (service, sqs, dispatcher) = CreateHarness(
                 new Message { MessageId = "m1", Body = "unroutable", ReceiptHandle = "r1" });
-            dispatcher.Setup(d => d.DispatchAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+            dispatcher.Setup(d => d.DispatchAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
             await service.PollQueueOnceAsync("ordercreated_Queue.fifo", CancellationToken.None);
 

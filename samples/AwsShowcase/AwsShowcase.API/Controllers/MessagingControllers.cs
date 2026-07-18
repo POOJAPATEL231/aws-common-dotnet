@@ -97,7 +97,8 @@ public class StreamsController : ControllerBase
         _firehose = firehose;
     }
 
-    /// <summary>Kinesis PublishAsync - single record with optional partition key.</summary>
+    /// <summary>Kinesis PublishAsync - single record. Defaults to the demo stream
+    /// provisioned at startup ("showcase-stream").</summary>
     [HttpPost("kinesis/{stream}")]
     public async Task<IActionResult> PublishKinesis(string stream, [FromBody] object record, [FromQuery] string? partitionKey, CancellationToken ct)
     {

@@ -6,6 +6,15 @@ using Persistence.Common.AWS.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// When pointing at LocalStack (AWS:ServiceURL set), supply dummy credentials so the
+// AWS SDK's credential chain is satisfied - LocalStack accepts any values. Real AWS
+// runs use a real credential source (profile, role, or environment) instead.
+if (!string.IsNullOrEmpty(builder.Configuration["AWS:ServiceURL"]))
+{
+    Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID", "test");
+    Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY", "test");
+}
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o => o.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo

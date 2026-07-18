@@ -142,13 +142,10 @@ namespace Infrastructure.Common.AWS.Eventbus
         {
             try
             {
-                var dlqAttributes = new Dictionary<string, string>();
-
-                var dlqSetting = queueSetting.DlqSetting;
-                if (dlqSetting is not null)
-                {
-                    dlqAttributes = CreateAttributes(dlqSetting, null);
-                }
+                // Always build DLQ attributes via CreateAttributes (which sets the FIFO
+                // attributes) - a FIFO queue's DLQ must itself be FIFO, even when no
+                // explicit DlqSetting is configured, or SQS rejects the .fifo name.
+                var dlqAttributes = CreateAttributes(queueSetting.DlqSetting ?? queueSetting, null);
 
                 var dlqResponse = await _sqsClient.CreateQueueAsync(new CreateQueueRequest
                 {

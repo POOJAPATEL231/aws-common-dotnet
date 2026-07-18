@@ -19,8 +19,8 @@ public class SecretsController : ControllerBase
 
     /// <summary>UpsertSecretAsync - create or update a secret.</summary>
     [HttpPut("{name}")]
-    public async Task<ActionResult<string>> Upsert(string name, [FromBody] string value, CancellationToken ct)
-        => Ok(await _secrets.UpsertSecretAsync(name, value, ct));
+    public async Task<ActionResult<string>> Upsert(string name, [FromBody] TextRequest request, CancellationToken ct)
+        => Ok(await _secrets.UpsertSecretAsync(name, request.Value, ct));
 
     /// <summary>GetSecretValueAsync.</summary>
     [HttpGet("{name}")]

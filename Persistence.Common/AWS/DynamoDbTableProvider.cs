@@ -138,8 +138,17 @@ namespace Persistence.Common.AWS
                 }
             };
 
-            var response = await _dynamoDbClient.UpdateTableAsync(request, cancellationToken);
-            return response.HttpStatusCode == System.Net.HttpStatusCode.OK;
+            try
+            {
+                var response = await _dynamoDbClient.UpdateTableAsync(request, cancellationToken);
+                return response.HttpStatusCode == System.Net.HttpStatusCode.OK;
+            }
+            catch (AmazonDynamoDBException ex) when (ex.Message.Contains("equals the current value", StringComparison.OrdinalIgnoreCase))
+            {
+                // Setting capacity to its current value is a no-op, not a failure -
+                // treat "update to same value" as idempotent success.
+                return true;
+            }
         }
 
         public async Task<bool> DeleteTableAsync(CancellationToken cancellationToken = default)

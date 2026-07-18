@@ -120,7 +120,9 @@ namespace Infrastructure.Common.AWS.Eventbus
             {
                 QueueUrl = queueUrl,
                 MaxNumberOfMessages = Math.Clamp(_options.MaxMessagesPerPoll, 1, 10),
-                WaitTimeSeconds = Math.Clamp(_options.WaitTimeSeconds, 0, 20)
+                WaitTimeSeconds = Math.Clamp(_options.WaitTimeSeconds, 0, 20),
+                // Needed to read the "Subject" attribute forwarded under raw message delivery.
+                MessageAttributeNames = new List<string> { "All" }
             }, cancellationToken);
 
             if (response.Messages is not { Count: > 0 })
@@ -135,9 +137,16 @@ namespace Infrastructure.Common.AWS.Eventbus
 
                 try
                 {
+                    // Under raw message delivery the event name arrives as the "Subject"
+                    // SQS message attribute; fall back to envelope parsing when absent.
+                    var eventNameHint = message.MessageAttributes is not null
+                        && message.MessageAttributes.TryGetValue("Subject", out var subject)
+                            ? subject.StringValue
+                            : null;
+
                     // False = unroutable/no handlers: the dispatcher logged it - delete
                     // anyway so a misrouted message cannot poison the queue forever.
-                    await dispatcher.DispatchAsync(message.Body, cancellationToken);
+                    await dispatcher.DispatchAsync(message.Body, eventNameHint, cancellationToken);
                     await _sqsClient.DeleteMessageAsync(queueUrl, message.ReceiptHandle, cancellationToken);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)

@@ -1,0 +1,81 @@
+# Local AWS + dependencies + admin dashboards for running AwsShowcase end to end.
+#   docker compose up -d          → LocalStack + Redis + web UIs
+#   dotnet run --project AwsShowcase.API
+#
+# Dashboards (watch resources appear as you call the API):
+#   LocalStack health   http://localhost:4566/_localstack/health
+#   DynamoDB admin      http://localhost:8001
+#   SQS admin           http://localhost:3999
+#   S3 manager          http://localhost:8082
+#   Swagger (the app)   http://localhost:8080/swagger
+services:
+  localstack:
+    container_name: showcase-localstack
+    # Pinned to the 3.x line: the last LocalStack that runs the community edition
+    # fully offline with no auth token (2025+ "latest" requires a free signup token).
+    image: localstack/localstack:3
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+    environment:
+      # Community-edition services only. Cognito, EventBridge Scheduler and AppConfig
+      # are LocalStack Pro features - their endpoints in the sample will return errors
+      # against the free image, which is expected (not an app bug).
+      - SERVICES=cloudwatch,dynamodb,lambda,s3,sqs,sns,secretsmanager,kms,ssm,events,stepfunctions,kinesis,firehose,ses
+      - ACTIVATE_PRO=0
+      - AWS_DEFAULT_REGION=us-east-1
+      - DEBUG=1
+    volumes:
+      - "./.localstack:/var/lib/localstack"
+
+  redis:
+    container_name: showcase-redis
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  # -------- Admin dashboards (point at LocalStack) --------
+
+  dynamodb-admin:
+    container_name: showcase-dynamodb-admin
+    image: aaronshaf/dynamodb-admin
+    restart: unless-stopped
+    depends_on:
+      - localstack
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+
+  sqs-admin:
+    container_name: showcase-sqs-admin
+    image: pacovk/sqs-admin:latest
+    restart: unless-stopped
+    depends_on:
+      - localstack
+    ports:
+      - "3999:3999"
+    environment:
+      - SQS_ENDPOINT_URL=http://localstack:4566
+      - SQS_AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+
+  s3manager:
+    container_name: showcase-s3manager
+    image: cloudlena/s3manager:latest
+    restart: unless-stopped
+    depends_on:
+      - localstack
+    ports:
+      - "8082:8080"
+    environment:
+      - ENDPOINT=localstack:4566
+      - ACCESS_KEY_ID=test
+      - SECRET_ACCESS_KEY=test
+      - USE_SSL=false
+      - SKIP_SSL_VERIFICATION=true

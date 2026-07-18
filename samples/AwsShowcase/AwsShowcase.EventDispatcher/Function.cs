@@ -42,7 +42,12 @@ public class Function
         {
             try
             {
-                await dispatcher.DispatchAsync(record.Body);
+                // Raw message delivery forwards the event name as the "Subject" attribute.
+                var eventNameHint = record.MessageAttributes is not null
+                    && record.MessageAttributes.TryGetValue("Subject", out var subject)
+                        ? subject.StringValue
+                        : null;
+                await dispatcher.DispatchAsync(record.Body, eventNameHint);
             }
             catch (Exception ex)
             {

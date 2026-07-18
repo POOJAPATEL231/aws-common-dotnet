@@ -5,6 +5,13 @@ using Utils.Common.Crypto;
 
 namespace AwsShowcase.API.Controllers;
 
+/// <summary>Request wrapper so string endpoints accept a proper JSON object
+/// (<c>{"value":"..."}</c>) instead of a bare quoted string body.</summary>
+public record TextRequest(string Value);
+
+/// <summary>Request wrapper for decrypt.</summary>
+public record CipherRequest(string CipherText);
+
 /// <summary>S3 file provider - every IFileProvider method.</summary>
 [ApiController]
 [Route("api/files")]
@@ -111,33 +118,33 @@ public class CacheController : ControllerBase
 
     /// <summary>SetAsync(key, value) - no expiration.</summary>
     [HttpPut("{key}")]
-    public async Task<IActionResult> Set(string key, [FromBody] string value)
+    public async Task<IActionResult> Set(string key, [FromBody] TextRequest request)
     {
-        await _cache.SetAsync(key, value);
+        await _cache.SetAsync(key, request.Value);
         return NoContent();
     }
 
     /// <summary>SetAsync(key, value, relative expiration).</summary>
     [HttpPut("{key}/expires-in/{seconds:int}")]
-    public async Task<IActionResult> SetWithTtl(string key, int seconds, [FromBody] string value)
+    public async Task<IActionResult> SetWithTtl(string key, int seconds, [FromBody] TextRequest request)
     {
-        await _cache.SetAsync(key, value, TimeSpan.FromSeconds(seconds));
+        await _cache.SetAsync(key, request.Value, TimeSpan.FromSeconds(seconds));
         return NoContent();
     }
 
     /// <summary>SetAsync(key, value, absolute expiration).</summary>
     [HttpPut("{key}/expires-at")]
-    public async Task<IActionResult> SetWithAbsoluteExpiry(string key, [FromQuery] DateTimeOffset at, [FromBody] string value)
+    public async Task<IActionResult> SetWithAbsoluteExpiry(string key, [FromQuery] DateTimeOffset at, [FromBody] TextRequest request)
     {
-        await _cache.SetAsync(key, value, at);
+        await _cache.SetAsync(key, request.Value, at);
         return NoContent();
     }
 
     /// <summary>SetSlidingAsync - expiry extends on each read.</summary>
     [HttpPut("{key}/sliding/{seconds:int}")]
-    public async Task<IActionResult> SetSliding(string key, int seconds, [FromBody] string value)
+    public async Task<IActionResult> SetSliding(string key, int seconds, [FromBody] TextRequest request)
     {
-        await _cache.SetSlidingAsync(key, value, TimeSpan.FromSeconds(seconds));
+        await _cache.SetSlidingAsync(key, request.Value, TimeSpan.FromSeconds(seconds));
         return NoContent();
     }
 
@@ -183,32 +190,35 @@ public class CryptoController : ControllerBase
     public ActionResult GenerateKey()
         => Ok(new { KeyBytes = _crypto.GenerateKey()?.Length, KeyBase64 = _crypto.GenerateKeyString() });
 
-    /// <summary>EncryptString - AES with a random IV per call.</summary>
+    /// <summary>EncryptString - AES with a random IV per call. Returns a JSON object so
+    /// the cipher round-trips cleanly into /decrypt (bare string bodies do not).</summary>
     [HttpPost("encrypt")]
-    public ActionResult<string> Encrypt([FromBody] string plainText) => Ok(_crypto.EncryptString(plainText));
+    public ActionResult Encrypt([FromBody] TextRequest request)
+        => Ok(new { CipherText = _crypto.EncryptString(request.Value) });
 
     /// <summary>DecryptString - reverses EncryptString.</summary>
     [HttpPost("decrypt")]
-    public ActionResult<string> Decrypt([FromBody] string cipherText) => Ok(_crypto.DecryptString(cipherText));
+    public ActionResult Decrypt([FromBody] CipherRequest request)
+        => Ok(new { PlainText = _crypto.DecryptString(request.CipherText) });
 
     /// <summary>Base64Encode / Base64Decode round-trip.</summary>
     [HttpPost("base64")]
-    public ActionResult Base64([FromBody] string text)
+    public ActionResult Base64([FromBody] TextRequest request)
     {
-        var encoded = _crypto.Base64Encode(text);
+        var encoded = _crypto.Base64Encode(request.Value);
         return Ok(new { Encoded = encoded, Decoded = _crypto.Base64Decode(encoded) });
     }
 
     /// <summary>HashString - SHA-256.</summary>
     [HttpPost("hash")]
-    public ActionResult<string> Hash([FromBody] string text) => Ok(_crypto.HashString(text));
+    public ActionResult Hash([FromBody] TextRequest request) => Ok(new { Hash = _crypto.HashString(request.Value) });
 
     /// <summary>HashPassword + ValidatePassword - PBKDF2 with salt.</summary>
     [HttpPost("password/hash")]
-    public ActionResult HashPassword([FromBody] string password)
+    public ActionResult HashPassword([FromBody] TextRequest request)
     {
-        var hash = _crypto.HashPassword(password, 100_000, out var salt);
-        var valid = _crypto.ValidatePassword(password, hash, salt, 100_000);
+        var hash = _crypto.HashPassword(request.Value, 100_000, out var salt);
+        var valid = _crypto.ValidatePassword(request.Value, hash, salt, 100_000);
         return Ok(new { Hash = hash, Salt = salt, RoundTripValid = valid });
     }
 

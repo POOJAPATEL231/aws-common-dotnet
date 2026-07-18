@@ -59,7 +59,24 @@ namespace Infrastructure.Common.DependencyInjection
         /// <summary>S3 object storage (incl. presigned URLs) behind <see cref="IFileProvider"/>.</summary>
         public static IServiceCollection AddAwsFileStorage(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddAwsServiceWithConfiguration<IAmazonS3>(configuration);
+            var serviceUrl = configuration["AWS:ServiceURL"];
+            if (!string.IsNullOrEmpty(serviceUrl))
+            {
+                // Against a custom endpoint (LocalStack/MinIO), S3 must use path-style
+                // addressing - virtual-hosted style ("{bucket}.host") does not resolve.
+                services.AddSingleton<Amazon.S3.IAmazonS3>(_ => new Amazon.S3.AmazonS3Client(
+                    new Amazon.S3.AmazonS3Config
+                    {
+                        ServiceURL = serviceUrl,
+                        ForcePathStyle = true,
+                        AuthenticationRegion = configuration["AWS:Region"] ?? "us-east-1"
+                    }));
+            }
+            else
+            {
+                services.AddAwsServiceWithConfiguration<Amazon.S3.IAmazonS3>(configuration);
+            }
+
             services.AddScoped<IFileProvider, AwsS3FileProvider>();
             return services;
         }
