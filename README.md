@@ -129,17 +129,82 @@ faults (`IRetryableRequest`), Unit of Work with atomic saves, transactional
 outbox, GSI queries via EF `HasIndex`, DTO separation, and ports-and-adapters
 so Core never references AWS directly.
 
-## Service coverage
+## Service reference — register & inject
 
-**Eventing & messaging:** SNS/SQS event bus with two consumption modes — in-process
-`SqsConsumerService` (local/containers) or the `QueueEventDispatcher` Lambda
-(serverless) — plus EventBridge publisher, EventBridge Scheduler, transactional outbox
-**Storage & data:** DynamoDB (EF-style ORM), S3 (+presigned URLs), SQL via EF Core (`SqlRepository`), ElastiCache/Redis
-**Communication:** SES email (simple + templated)
-**Identity & security:** Cognito (tokens + user administration), Secrets Manager, KMS, AES crypto utilities
-**Operations:** CloudWatch Logs (Serilog) + custom metrics (EMF), X-Ray tracing, SSM Parameter Store config, feature flags (SSM or AppConfig), distributed lock
-**Workflows & streaming:** Step Functions, Kinesis Data Streams, Data Firehose
-**Local development:** LocalStack switch for every AWS client
+Every service is one `AddXxx(configuration)` call in `Program.cs` and one interface to
+inject. Registration extensions live in `Infrastructure.Common.DependencyInjection`
+(and `Persistence.Common.AWS.DependencyInjection` for the data layer); the interfaces
+they bind live in `Application.Common.*` (with a few in `Infrastructure.Common`/`Utils.Common`).
+
+| Service | Register in `Program.cs` | Inject | Config section |
+|---|---|---|---|
+| **DynamoDB (EF-style)** | `AddPersistenceDynamoDb<TContext>(config, env)` + `app.UsePersistenceDynamoAsync<TContext>(opts)` | your `TContext`, `IDynamoDbSet<T>`, `IUnitOfWork`, your repository | `AWS` |
+| **Transactional outbox** | `AddDynamoDbOutbox()` | `context.AddOutboxMessage(evt)` (dispatcher is hosted) | — |
+| **Distributed lock** | `AddDynamoDbDistributedLock()` | `IDistributedLock` | — |
+| **S3 file storage** | `AddAwsFileStorage(config)` | `IFileProvider` | `AWS` |
+| **SES email** | `AddAwsEmail(config)` | `IEmailService` | — |
+| **SNS/SQS event bus** | `AddAwsSnsSqsEventBus(config)` | `IEventBus`, `IQueueService` | `AwsInfraSettings:Queues` |
+| **SQS consumer** (in-process) | `AddSqsConsumer(config)` | *(BackgroundService — hosted)* | `SqsConsumer` |
+| **SQS dispatch** (for a Lambda host) | `AddSqsEventDispatch()` | `ISqsMessageDispatcher` | — |
+| **EventBridge publish** | `AddEventBridgePublishing(config)` | `IIntegrationEventPublisher` | `EventBridge` |
+| **EventBridge Scheduler** | `AddEventBridgeScheduling(config)` | `IScheduler` | — |
+| **Step Functions** | `AddStepFunctionsWorkflows(config)` | `IWorkflowClient` | — |
+| **Kinesis / Firehose** | `AddAwsStreaming(config)` | `KinesisStreamPublisher` / `FirehoseStreamPublisher` (`IStreamPublisher`) | — |
+| **Cognito admin** | `AddCognitoIdentity(config)` | `IIdentityService` | `Cognito` |
+| **CloudWatch metrics (EMF)** | `AddEmfMetrics(options)` | `IMetrics` | — |
+| **Feature flags — SSM** | `AddSsmFeatureFlags(config)` | `IFeatureManager` | — |
+| **Feature flags — AppConfig** | `AddAppConfigFeatureFlags(config)` | `IFeatureManager` | `AppConfig` |
+| **Feature flags — local** | `AddLocalFeatureFlags()` | `IFeatureManager` | `Features` |
+| **Secrets Manager + KMS** | `AddAwsSecrets(config)` | `ISecretRepository` | — |
+| **Service-to-service HTTP** | `AddAwsApiService(config)` | `IApiService` | `AppSettings`, `CognitoAuth` |
+| **Redis / ElastiCache cache** | `AddAwsRedisCache(config)` | `ICache` | `Redis` |
+| **Distributed-cache adapter** | `AddDistributedCacheAdapter()` (after `AddDistributedMemoryCache()` etc.) | `ICache` | — |
+| **Crypto utilities** | `services.AddSingleton<ICryptoProvider>(new CryptoProvider(options))` | `ICryptoProvider` | `CryptoSettings` |
+
+Example — register a handful and inject them:
+
+```csharp
+// Program.cs
+builder.Services
+    .AddPersistenceDynamoDb<ShopContext>(builder.Configuration, builder.Environment)
+    .AddAwsFileStorage(builder.Configuration)     // IFileProvider (S3)
+    .AddAwsEmail(builder.Configuration)           // IEmailService (SES)
+    .AddAwsSnsSqsEventBus(builder.Configuration)  // IEventBus
+    .AddSqsConsumer(builder.Configuration);       // background handler dispatch
+
+await app.UsePersistenceDynamoAsync<ShopContext>(new DynamoDbRepositoryOptions());
+```
+
+```csharp
+public class OrderService(IFileProvider files, IEmailService email, IEventBus bus) { /* ... */ }
+```
+
+See [`samples/AwsShowcase/AwsShowcase.Integration/DependencyInjection.cs`](samples/AwsShowcase/AwsShowcase.Integration/DependencyInjection.cs)
+for a full composition wiring every service, and each controller in
+[`samples/AwsShowcase/AwsShowcase.API/Controllers`](samples/AwsShowcase/AwsShowcase.API/Controllers)
+for a call-site of every method.
+
+## Running locally against LocalStack
+
+The sample is verified end to end (54 endpoints + the full publish→SNS→SQS→consumer→handler
+loop) against LocalStack:
+
+```bash
+cd samples/AwsShowcase
+docker compose up -d                       # LocalStack 3.x + Redis + admin UIs
+dotnet run --project AwsShowcase.API       # http://localhost:8080/swagger
+bash smoke-test.sh                          # exercises every endpoint
+```
+
+Dashboards: DynamoDB `:8001`, SQS `:3999`, S3 `:8082`, LocalStack health `:4566/_localstack/health`.
+
+**Pointing your own app at LocalStack:** set `AWS:ServiceURL` to `http://localhost:4566`
+(the SDK's native endpoint — reliable for the SNS/SQS query-protocol services, which
+LocalStack.Client's per-service URLs mangle) and leave `LocalStack:UseLocalStack=false`.
+`AddAwsFileStorage` automatically enables S3 path-style addressing when `AWS:ServiceURL`
+is set. Clear `AWS:ServiceURL` and supply real credentials to run against real AWS.
+Cognito, EventBridge Scheduler and AppConfig are LocalStack **Pro** features and are
+expected to fail on the free image.
 
 ## Roadmap
 
@@ -147,9 +212,10 @@ so Core never references AWS directly.
 - [x] Optimistic concurrency via ETag conditional writes
 - [x] SES, EventBridge (+Scheduler), CloudWatch metrics, AppConfig flags, presigned URLs
 - [x] Step Functions, Kinesis/Firehose, Cognito admin, distributed lock, transactional outbox, SQL repository
+- [x] Verified end to end against LocalStack (54 endpoints + full event loop)
 - [ ] Value-converter read path (`ConvertFromProvider`)
 - [ ] TTL attribute mapping (`ttl`) wiring
-- [ ] DynamoDB Local / LocalStack integration test suite
+- [ ] Automated LocalStack integration test stage in CI
 - [ ] Azure implementations behind the same abstractions
 
 ## Contributing
