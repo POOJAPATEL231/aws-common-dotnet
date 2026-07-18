@@ -8,6 +8,12 @@
         // Mark property as range key
         IDynamoDBEntityBuilder HasRangeKey(string propertyName, Type propertyType);
 
+        // Declare a Global Secondary Index over the given properties
+        IDynamoDBEntityBuilder HasGlobalSecondaryIndex(string indexName, string partitionKeyPropertyName, string? sortKeyPropertyName = null);
+
+        // Get the list of declared secondary indexes
+        List<IndexConfiguration> GetIndexConfigurations();
+
         // Mark property as having encryption
         IDynamoDBEntityBuilder HasEncryption(string propertyName, Type propertyType);
 

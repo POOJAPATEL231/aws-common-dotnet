@@ -187,7 +187,7 @@ namespace Persistence.Common.AWS
             if (keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter())
             {
                 return await _docProvider.GetItemsByQueryAsync(filterExpression,
-                    keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                    keyConditionExpression, expressionAttributeValues,
                     expressionAttributeNames, cancellationToken);
             }
 
@@ -212,7 +212,7 @@ namespace Persistence.Common.AWS
             if (keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter())
             {
                 return await _docProvider.GetItemByQueryAsync(filterExpression,
-                 keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                 keyConditionExpression, expressionAttributeValues,
                   expressionAttributeNames, cancellationToken);
             }
             return await _docProvider.GetItemByQueryAsync(filterExpression, expressionAttributeValues, expressionAttributeNames, cancellationToken);
@@ -237,7 +237,7 @@ namespace Persistence.Common.AWS
             if (keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter())
             {
                 var itemsByKey = await _docProvider.GetItemsByQueryAsync(filterExpression,
-                 keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                 keyConditionExpression, expressionAttributeValues,
                   expressionAttributeNames, cancellationToken);
                 return itemsByKey?.SingleOrDefault();
             }
@@ -265,7 +265,7 @@ namespace Persistence.Common.AWS
             if (keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter())
             {
                 var itemsByKey = await _docProvider.GetItemsByQueryAsync(filterExpression,
-                keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                keyConditionExpression, expressionAttributeValues,
                 expressionAttributeNames, cancellationToken);
                 return itemsByKey?.First();
             }
@@ -293,7 +293,7 @@ namespace Persistence.Common.AWS
             if (keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter())
             {
                 var itemsByKey = await _docProvider.GetItemsByQueryAsync(filterExpression,
-                keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                keyConditionExpression, expressionAttributeValues,
                 expressionAttributeNames, cancellationToken);
                 return itemsByKey?.Single();
             }
@@ -316,7 +316,7 @@ namespace Persistence.Common.AWS
             if (keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter())
             {
                 return await _docProvider.GetPagedItemsByQueryAsync(filterExpression,
-                keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                keyConditionExpression, expressionAttributeValues,
                 expressionAttributeNames, page, pageSize, cancellationToken);
             }
 
@@ -336,7 +336,7 @@ namespace Persistence.Common.AWS
             if (keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter())
             {
                 return await _docProvider.CountItemsByQueryAsync(filterExpression,
-                keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                keyConditionExpression, expressionAttributeValues,
                 expressionAttributeNames, cancellationToken);
             }
 
@@ -365,7 +365,7 @@ namespace Persistence.Common.AWS
                 else
                 {
                     var itemsByKey = await _docProvider.GetItemsByQueryAsync(filterExpression,
-                     keyConditionExpression.GenerateFinalKeyFilter(), expressionAttributeValues,
+                     keyConditionExpression, expressionAttributeValues,
                      expressionAttributeNames, cancellationToken);
                     return itemsByKey?.ToList() ?? new List<TEntity>();
                 }

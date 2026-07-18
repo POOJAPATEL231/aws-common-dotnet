@@ -63,6 +63,28 @@ namespace Persistence.Common.AWS.Builder
             AddIgnorePropertyConfiguration(_dynamoDbBuilder, entityTypeBuilder.Metadata.GetIgnoredMembers());
 
             AddPropertiesConfiguration(_dynamoDbBuilder, entityTypeBuilder.Metadata.GetProperties());
+
+            AddIndexConfigurations(_dynamoDbBuilder, entityTypeBuilder.Metadata.GetIndexes());
+        }
+
+        // Map EF HasIndex(...) declarations to DynamoDB Global Secondary Indexes.
+        // The first index property becomes the GSI partition key; an optional second
+        // property becomes the GSI sort key.
+        private static void AddIndexConfigurations(IDynamoDBEntityBuilder dynamoDBEntityBuilder, IEnumerable<IMutableIndex> indexes)
+        {
+            foreach (var index in indexes)
+            {
+                if (index.Properties.Count == 0)
+                {
+                    continue;
+                }
+
+                var partitionKeyProperty = index.Properties[0].Name;
+                var sortKeyProperty = index.Properties.Count > 1 ? index.Properties[1].Name : null;
+                var indexName = index.Name ?? $"{string.Join("-", index.Properties.Select(p => p.Name))}-index";
+
+                dynamoDBEntityBuilder.HasGlobalSecondaryIndex(indexName, partitionKeyProperty, sortKeyProperty);
+            }
         }
 
         // Adapt ownerships (OwnsOne and OwnsMany)

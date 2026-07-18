@@ -54,6 +54,16 @@ namespace Persistence.Common.AWS
                         .Where(r => r.Code != "None")
                         .Select(r => $"{r.Code}: {r.Message}"))
                     : ex.Message;
+
+                // A failed condition means another writer changed the item since it was
+                // read (or an Add hit an existing key) - surface it as a concurrency
+                // conflict so callers can re-read and retry.
+                if (ex.CancellationReasons?.Any(r => r.Code == "ConditionalCheckFailed") == true)
+                {
+                    throw new DynamoDbConcurrencyException(
+                        $"The data was modified by another process since it was read. Reasons: {reasons}", ex);
+                }
+
                 throw new InvalidOperationException($"Transaction failed. Reasons: {reasons}", ex);
             }
         }

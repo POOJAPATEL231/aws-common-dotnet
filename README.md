@@ -52,6 +52,30 @@ Supported LINQ predicate features: `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`,
 (→ `attribute_exists`/`attribute_not_exists`), reserved-word aliasing, and
 automatic Query-vs-Scan selection when a key condition is detected.
 
+### Global Secondary Indexes
+
+Declare an index with EF's `HasIndex` (or `HasGlobalSecondaryIndex` on the
+DynamoDB builder) and predicates on the index key are automatically promoted
+from a full-table Scan to an index Query:
+
+```csharp
+// in your DocEntityConfiguration<Order>:
+builder.HasIndex(e => e.CustomerName);   // → GSI "CustomerName-index"
+
+// this now runs as a Query against the GSI, not a Scan:
+var orders = await repository.GetAsync(o => o.CustomerName == "alice");
+```
+
+Tables created by the library include the configured GSIs automatically.
+
+### Optimistic concurrency
+
+Every entity carries an `ETag` stamp that rotates on each save. Transactional
+saves (`SaveChangesAsync`) condition writes on the ETag the entity was read
+with — if another writer changed the item in between, the save throws
+`DynamoDbConcurrencyException` so you can re-read and retry. Adds are guarded
+with `attribute_not_exists`, so inserting over an existing key also fails fast.
+
 ## Building
 
 ```bash
@@ -75,8 +99,8 @@ Requires the .NET 8 SDK.
 
 ## Roadmap
 
-- [ ] GSI/LSI support in the DynamoDB query pipeline (`IndexName` selection)
-- [ ] Optimistic concurrency via ETag conditional writes
+- [x] GSI support in the DynamoDB query pipeline (`IndexName` selection)
+- [x] Optimistic concurrency via ETag conditional writes
 - [ ] Value-converter read path (`ConvertFromProvider`)
 - [ ] TTL attribute mapping (`ttl`) wiring
 - [ ] DynamoDB Local integration test suite

@@ -4,6 +4,7 @@
     {
         private readonly List<PropertyConfiguration> _propertyConfigurations = new();
         private readonly List<NestedConfiguration> _nestedEntityConfigurations = new();
+        private readonly List<IndexConfiguration> _indexConfigurations = new();
         private string _tableName = string.Empty;
 
         // Mark property as partition key
@@ -23,6 +24,27 @@
             propertyConfiguration.PropertyType = propertyType;
             return this;
         }
+
+        // Declare a Global Secondary Index over the given properties
+        public IDynamoDBEntityBuilder HasGlobalSecondaryIndex(string indexName, string partitionKeyPropertyName, string? sortKeyPropertyName = null)
+        {
+            // Ensure the index key properties are known so attribute names/types resolve later.
+            GetPropertyConfiguration(partitionKeyPropertyName);
+            if (!string.IsNullOrWhiteSpace(sortKeyPropertyName))
+            {
+                GetPropertyConfiguration(sortKeyPropertyName);
+            }
+
+            if (!_indexConfigurations.Exists(i => i.IndexName == indexName))
+            {
+                _indexConfigurations.Add(new IndexConfiguration(indexName, partitionKeyPropertyName, sortKeyPropertyName));
+            }
+
+            return this;
+        }
+
+        // Expose the declared secondary indexes
+        public List<IndexConfiguration> GetIndexConfigurations() => _indexConfigurations;
 
         // Mark property as HasEncryption
         public IDynamoDBEntityBuilder HasEncryption(string propertyName, Type propertyType)
@@ -112,17 +134,19 @@
 
         public void SetTableName(string tableName)
         {
-            throw new NotImplementedException();
+            _tableName = tableName;
         }
 
         public void ConfigureProperty(string propertyName, PropertyConfiguration configuration)
         {
-            throw new NotImplementedException();
+            _propertyConfigurations.RemoveAll(e => e.PropertyName == propertyName);
+            _propertyConfigurations.Add(configuration);
         }
 
         public void ConfigureNestedEntity(NestedConfiguration nestedConfiguration)
         {
-            throw new NotImplementedException();
+            _nestedEntityConfigurations.RemoveAll(e => e.PropertyName == nestedConfiguration.PropertyName);
+            _nestedEntityConfigurations.Add(nestedConfiguration);
         }
     }
 }

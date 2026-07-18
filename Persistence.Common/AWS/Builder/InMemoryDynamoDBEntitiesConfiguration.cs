@@ -49,6 +49,16 @@ namespace Persistence.Common.AWS.Builder
             }
         }
 
+        /// <summary>
+        /// Registers (or replaces) the configuration for an entity type directly,
+        /// without going through an EF <c>DocEntityConfiguration</c>. Useful for
+        /// consumers that configure entities programmatically and for tests.
+        /// </summary>
+        public static void AddConfiguration(Type entityType, IDynamoDBEntityBuilder builder)
+        {
+            _entityConfigurations[entityType] = builder;
+        }
+
         // This method retrieves the configuration for a specific entity type
         public static IDynamoDBEntityBuilder? GetConfiguration<TEntity>()
         {

@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Utils.Common.Crypto;
 using Amazon.DynamoDBv2.DocumentModel;
+using Persistence.Common.AWS.Builder;
 
 namespace Persistence.Common.AWS
 {
@@ -96,6 +97,46 @@ namespace Persistence.Common.AWS
             return await ExecuteScanAsync(filterExpression, filterAttributeValues, expressionAttributeNames, cancellationToken: cancellationToken);
         }
 
+        public async Task<IEnumerable<TEntity>?> GetItemsByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            CancellationToken cancellationToken = default)
+        {
+            return await ExecuteQueryAsync(filterExpression, keyFilter.GenerateFinalKeyFilter(), filterAttributeValues,
+                expressionAttributeNames, null, indexName: keyFilter.IndexName, cancellationToken: cancellationToken);
+        }
+
+        public async Task<TEntity?> GetItemByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await GetItemsByQueryAsync(filterExpression, keyFilter, filterAttributeValues, expressionAttributeNames, cancellationToken);
+            return result is null ? default : result.FirstOrDefault();
+        }
+
+        public async Task<int> CountItemsByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            CancellationToken cancellationToken = default)
+        {
+            return await ExecuteCountQueryAsync(filterExpression, keyFilter.GenerateFinalKeyFilter(), filterAttributeValues,
+                expressionAttributeNames, keyFilter.IndexName, cancellationToken);
+        }
+
+        public async Task<PagedList<TEntity>> GetPagedItemsByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            return await ExecutePagedQueryAsync(filterExpression, keyFilter.GenerateFinalKeyFilter(), filterAttributeValues,
+                expressionAttributeNames, null, page, pageSize, keyFilter.IndexName, cancellationToken);
+        }
+
         public async Task<TEntity?> GetItemByQueryAsync(
             string filterExpression, string keyConditionExpression,
             Dictionary<string, AttributeValue> filterAttributeValues,
@@ -123,7 +164,7 @@ namespace Persistence.Common.AWS
              CancellationToken cancellationToken = default)
         {
             return await ExecuteCountQueryAsync(filterExpression, keyConditionExpression, filterAttributeValues,
-            expressionAttributeNames, cancellationToken);
+            expressionAttributeNames, null, cancellationToken);
         }
 
         public async Task<int> CountItemsByScanAsync(
@@ -156,7 +197,7 @@ namespace Persistence.Common.AWS
             int page, int pageSize, CancellationToken cancellationToken = default)
         {
             return await ExecutePagedQueryAsync(filterExpression, keyConditionExpression, filterAttributeValues,
-            expressionAttributeNames, null, page, pageSize, cancellationToken);
+            expressionAttributeNames, null, page, pageSize, cancellationToken: cancellationToken);
         }
 
         public async Task<PagedList<TEntity>> GetPagedItemsByQueryAsync(
@@ -166,7 +207,7 @@ namespace Persistence.Common.AWS
             bool isScanIndexForward, int page, int pageSize, CancellationToken cancellationToken = default)
         {
             return await ExecutePagedQueryAsync(filterExpression, keyConditionExpression, filterAttributeValues,
-            expressionAttributeNames, isScanIndexForward, page, pageSize, cancellationToken);
+            expressionAttributeNames, isScanIndexForward, page, pageSize, cancellationToken: cancellationToken);
         }
 
         public async Task CreateItemAsync(TEntity entity, CancellationToken cancellationToken = default)
@@ -310,6 +351,7 @@ namespace Persistence.Common.AWS
             Dictionary<string, string>? expressionAttributeNames,
             bool? isScanIndexForward, IEnumerable<string>? projectionAttributes = null,
             int? limit = null,
+            string? indexName = null,
             CancellationToken cancellationToken = default)
         {
             var entities = new List<Dictionary<string, AttributeValue>>();
@@ -321,6 +363,11 @@ namespace Persistence.Common.AWS
                 {
                     ExclusiveStartKey = lastEvaluatedKey
                 };
+
+                if (!string.IsNullOrWhiteSpace(indexName))
+                {
+                    queryRequest.IndexName = indexName;
+                }
 
                 if (projectionAttributes is not null && projectionAttributes.Any())
                 {
@@ -424,7 +471,8 @@ namespace Persistence.Common.AWS
             string? filterExpression, string? keyConditionExpression,
             Dictionary<string, AttributeValue>? filterAttributeValues,
             Dictionary<string, string>? expressionAttributeNames,
-             CancellationToken cancellationToken)
+            string? indexName,
+            CancellationToken cancellationToken)
         {
             var count = 0;
             var lastEvaluatedKey = new Dictionary<string, AttributeValue>();
@@ -436,6 +484,11 @@ namespace Persistence.Common.AWS
                     ExclusiveStartKey = lastEvaluatedKey,
                     Select = Select.COUNT
                 };
+
+                if (!string.IsNullOrWhiteSpace(indexName))
+                {
+                    queryRequest.IndexName = indexName;
+                }
 
                 if (!string.IsNullOrWhiteSpace(filterExpression))
                 {
@@ -535,7 +588,8 @@ namespace Persistence.Common.AWS
             string? filterExpression, string? keyConditionExpression,
             Dictionary<string, AttributeValue>? filterAttributeValues,
             Dictionary<string, string>? expressionAttributeNames,
-            bool? isScanIndexForward, int page, int pageSize, CancellationToken cancellationToken)
+            bool? isScanIndexForward, int page, int pageSize,
+            string? indexName = null, CancellationToken cancellationToken = default)
         {
             // See ExecutePagedScanAsync: skip matched items before the page window and
             // keep counting to the end for an accurate total.
@@ -551,6 +605,11 @@ namespace Persistence.Common.AWS
                     ExclusiveStartKey = lastEvaluatedKey,
                     Select = Select.ALL_ATTRIBUTES
                 };
+
+                if (!string.IsNullOrWhiteSpace(indexName))
+                {
+                    request.IndexName = indexName;
+                }
 
                 if (isScanIndexForward.HasValue)
                 {
@@ -603,21 +662,47 @@ namespace Persistence.Common.AWS
             };
         }
 
+        /// <summary>Resolves the stored attribute name of the ETag concurrency stamp.</summary>
+        private static string GetETagAttributeName()
+        {
+            var configuration = InMemoryDynamoDBEntitiesConfiguration.GetConfiguration<TEntity>();
+            return configuration?
+                .GetPropertyConfigurations()
+                .Find(e => e.PropertyName == nameof(DocEntity.ETag))?
+                .JsonPropertyName ?? nameof(DocEntity.ETag);
+        }
+
         public TransactWriteItem GetAddTransactWriteItem(TEntity entity)
         {
+            // Stamp a fresh concurrency token so subsequent updates have a baseline.
+            entity.SetETag(Guid.NewGuid().ToString("N"));
+
             var document = EntityDocumentConverter.ToConfiguredDocument(entity);
-            return new TransactWriteItem
+            var hashKeyAttributeName = DynamoUtils.ResolveHashKeyPropertyName<TEntity>();
+
+            var put = new Put
             {
-                Put = new Put
-                {
-                    Item = document.ToAttributeMap(),
-                    TableName = _tableName
-                }
+                Item = document.ToAttributeMap(),
+                TableName = _tableName
             };
+
+            // Adding must not silently overwrite an existing item (EF Add semantics).
+            if (!string.IsNullOrWhiteSpace(hashKeyAttributeName))
+            {
+                put.ConditionExpression = "attribute_not_exists(#pk)";
+                put.ExpressionAttributeNames = new Dictionary<string, string> { ["#pk"] = hashKeyAttributeName };
+            }
+
+            return new TransactWriteItem { Put = put };
         }
 
         public TransactWriteItem GetUpdateTransactWriteItem(TEntity entity)
         {
+            // Optimistic concurrency: remember the ETag the entity was read with, then
+            // rotate it so the stored item carries a new stamp after this write.
+            var expectedETag = entity.ETag;
+            entity.SetETag(Guid.NewGuid().ToString("N"));
+
             // Convert the entity to a DynamoDB document
             var document = EntityDocumentConverter.ToConfiguredDocument(entity);
 
@@ -659,6 +744,23 @@ namespace Persistence.Common.AWS
             // Combine all update parts into a single UpdateExpression
             var updateExpressionString = "SET " + string.Join(", ", updateExpression);
 
+            // Optimistic-concurrency condition: the stored ETag must still match the one
+            // this entity was read with. A missing expected ETag (legacy/new item) instead
+            // requires the attribute to be absent.
+            var etagAttributeName = GetETagAttributeName();
+            expressionAttributeNames["#etag_attr"] = etagAttributeName;
+
+            string conditionExpression;
+            if (string.IsNullOrEmpty(expectedETag))
+            {
+                conditionExpression = "attribute_not_exists(#etag_attr)";
+            }
+            else
+            {
+                conditionExpression = "#etag_attr = :etag_expected";
+                expressionAttributeValues[":etag_expected"] = new AttributeValue { S = expectedETag };
+            }
+
             // Return the TransactWriteItem for the transaction
             return new TransactWriteItem
             {
@@ -667,6 +769,7 @@ namespace Persistence.Common.AWS
                     Key = keyAttributeValues, // The item's primary key
                     TableName = _tableName, // DynamoDB table name
                     UpdateExpression = updateExpressionString, // The update expression we just constructed
+                    ConditionExpression = conditionExpression, // Optimistic-concurrency guard
                     ExpressionAttributeValues = expressionAttributeValues, // The values for the update
                     ExpressionAttributeNames = expressionAttributeNames, // Attribute names
                 }
@@ -676,14 +779,21 @@ namespace Persistence.Common.AWS
         public TransactWriteItem GetDeleteTransactWriteItem(TEntity entity)
         {
             var keyAttributeValues = entity.GetKeyAttributeValueDictionary();
-            return new TransactWriteItem
+            var delete = new Delete
             {
-                Delete = new Delete
-                {
-                    Key = keyAttributeValues,
-                    TableName = _tableName
-                }
+                Key = keyAttributeValues,
+                TableName = _tableName
             };
+
+            // Optimistic concurrency: only delete the version this entity was read as.
+            if (!string.IsNullOrEmpty(entity.ETag))
+            {
+                delete.ConditionExpression = "#etag_attr = :etag_expected";
+                delete.ExpressionAttributeNames = new Dictionary<string, string> { ["#etag_attr"] = GetETagAttributeName() };
+                delete.ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":etag_expected"] = new AttributeValue { S = entity.ETag } };
+            }
+
+            return new TransactWriteItem { Delete = delete };
         }
 
         public async Task<IEnumerable<TEntity>?> ExecuteQueryAsync(QueryExpression<TEntity> queryExpression, CancellationToken cancellationToken = default)
@@ -697,6 +807,7 @@ namespace Persistence.Common.AWS
                      queryExpression.IsScanIndexForward,
                      queryExpression.ProjectionAttributes,
                      queryExpression.Limit,
+                     queryExpression.IndexName,
                      cancellationToken) :
                   await ExecuteScanAsync(
                      string.Join(" AND ", queryExpression.FilterExpressions),

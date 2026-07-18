@@ -1,6 +1,7 @@
 ﻿using Amazon.DynamoDBv2.Model;
 using Domain.Common;
 using Domain.Common.Entities;
+using Persistence.Common.AWS.Builder;
 
 namespace Persistence.Common.AWS
 {
@@ -34,6 +35,34 @@ namespace Persistence.Common.AWS
             Dictionary<string, AttributeValue> filterAttributeValues,
             Dictionary<string, string>? expressionAttributeNames,
             CancellationToken cancellationToken = default);
+
+        /// <summary>Key-condition query honoring <see cref="KeyFilter.IndexName"/> (GSI-aware).</summary>
+        Task<IEnumerable<TEntity>?> GetItemsByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Single-item key-condition query honoring <see cref="KeyFilter.IndexName"/> (GSI-aware).</summary>
+        Task<TEntity?> GetItemByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Count query honoring <see cref="KeyFilter.IndexName"/> (GSI-aware).</summary>
+        Task<int> CountItemsByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Paged key-condition query honoring <see cref="KeyFilter.IndexName"/> (GSI-aware).</summary>
+        Task<PagedList<TEntity>> GetPagedItemsByQueryAsync(
+            string filterExpression, KeyFilter keyFilter,
+            Dictionary<string, AttributeValue> filterAttributeValues,
+            Dictionary<string, string>? expressionAttributeNames,
+            int page, int pageSize, CancellationToken cancellationToken = default);
 
         Task<TEntity?> GetItemByQueryAsync(
             string filterExpression, string keyConditionExpression,

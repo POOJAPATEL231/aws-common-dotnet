@@ -67,7 +67,7 @@ namespace Persistence.Common.AWS
             var results = keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter()
                                     ? await _docProvider.GetItemsByQueryAsync(
                                         filterExpression,
-                                        keyConditionExpression.GenerateFinalKeyFilter(),
+                                        keyConditionExpression,
                                         expressionAttributeValues,
                                         expressionAttributeNames,
                                         cancellationToken)
@@ -113,7 +113,7 @@ namespace Persistence.Common.AWS
             var items = keyConditionExpression is not null && keyConditionExpression.CanUseKeyFilter()
                         ? await _docProvider.GetItemsByQueryAsync(
                             filterExpression,
-                            keyConditionExpression.GenerateFinalKeyFilter(),
+                            keyConditionExpression,
                             expressionAttributeValues,
                             expressionAttributeNames,
                             cancellationToken)

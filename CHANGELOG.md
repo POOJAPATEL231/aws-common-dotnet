@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Global Secondary Index support**: declare indexes via EF `HasIndex(...)` or
+  `HasGlobalSecondaryIndex(...)`; predicates on index keys are promoted from
+  full-table Scans to index Queries, and `CreateTableAsync` provisions the GSIs.
+- **Optimistic concurrency**: ETag stamps rotate on every save; transactional
+  writes condition on the previously-read ETag and surface conflicts as
+  `DynamoDbConcurrencyException`. Adds are guarded against overwriting
+  existing items.
+- `QueryExpression.WithIndex(...)` for explicitly targeting a GSI.
 - Initial public release of the library suite: Domain.Common, Application.Common,
   Utils.Common, Infrastructure.Common, Persistence.Common.
 - `Common.Tests` unit-test suite covering LINQ→DynamoDB translation, entity

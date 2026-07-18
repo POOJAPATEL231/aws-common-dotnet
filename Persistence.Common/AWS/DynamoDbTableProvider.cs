@@ -54,6 +54,8 @@ namespace Persistence.Common.AWS
                 Value = t.Value
             }).ToList();
 
+            var globalSecondaryIndexes = BuildGlobalSecondaryIndexes(attributeDefinitions, readCapacityUnits, writeCapacityUnits);
+
             var request = new CreateTableRequest
             {
                 TableName = _tableName,
@@ -62,6 +64,11 @@ namespace Persistence.Common.AWS
                 ProvisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits),
                 Tags = tags
             };
+
+            if (globalSecondaryIndexes.Count > 0)
+            {
+                request.GlobalSecondaryIndexes = globalSecondaryIndexes;
+            }
 
             var response = await _dynamoDbClient.CreateTableAsync(request, cancellationToken);
 
@@ -172,6 +179,71 @@ namespace Persistence.Common.AWS
             }
 
             return tableDescriptions;
+        }
+
+        /// <summary>
+        /// Builds GSI definitions from the entity's configured secondary indexes and adds
+        /// any missing key attribute definitions to <paramref name="attributeDefinitions"/>.
+        /// </summary>
+        private static List<GlobalSecondaryIndex> BuildGlobalSecondaryIndexes(
+            List<AttributeDefinition> attributeDefinitions, long readCapacityUnits, long writeCapacityUnits)
+        {
+            var configuration = Persistence.Common.AWS.Builder.InMemoryDynamoDBEntitiesConfiguration.GetConfiguration<TEntity>();
+            var indexConfigurations = configuration?.GetIndexConfigurations();
+            var result = new List<GlobalSecondaryIndex>();
+
+            if (indexConfigurations is not { Count: > 0 })
+            {
+                return result;
+            }
+
+            foreach (var index in indexConfigurations)
+            {
+                var indexKeySchema = new List<KeySchemaElement>
+                {
+                    new(ResolveAttributeName(configuration!, index.PartitionKeyPropertyName), KeyType.HASH)
+                };
+                EnsureAttributeDefinition(attributeDefinitions, configuration!, index.PartitionKeyPropertyName);
+
+                if (!string.IsNullOrWhiteSpace(index.SortKeyPropertyName))
+                {
+                    indexKeySchema.Add(new KeySchemaElement(ResolveAttributeName(configuration!, index.SortKeyPropertyName), KeyType.RANGE));
+                    EnsureAttributeDefinition(attributeDefinitions, configuration!, index.SortKeyPropertyName);
+                }
+
+                result.Add(new GlobalSecondaryIndex
+                {
+                    IndexName = index.IndexName,
+                    KeySchema = indexKeySchema,
+                    Projection = new Projection { ProjectionType = ProjectionType.ALL },
+                    ProvisionedThroughput = new ProvisionedThroughput(readCapacityUnits, writeCapacityUnits)
+                });
+            }
+
+            return result;
+        }
+
+        private static string ResolveAttributeName(Builder.IDynamoDBEntityBuilder configuration, string propertyName)
+        {
+            var propertyConfiguration = configuration.GetPropertyConfigurations().Find(e => e.PropertyName == propertyName);
+            return propertyConfiguration?.JsonPropertyName ?? propertyName;
+        }
+
+        private static void EnsureAttributeDefinition(
+            List<AttributeDefinition> attributeDefinitions, Builder.IDynamoDBEntityBuilder configuration, string propertyName)
+        {
+            var attributeName = ResolveAttributeName(configuration, propertyName);
+            if (attributeDefinitions.Exists(a => a.AttributeName == attributeName))
+            {
+                return;
+            }
+
+            // Prefer the configured CLR type; fall back to reflection over the entity.
+            var propertyType = configuration.GetPropertyConfigurations().Find(e => e.PropertyName == propertyName)?.PropertyType
+                ?? typeof(TEntity).GetProperty(propertyName)?.PropertyType
+                ?? typeof(string);
+
+            attributeDefinitions.Add(new AttributeDefinition(attributeName, GetAttributeType(propertyType)));
         }
 
         private static ScalarAttributeType GetAttributeType(Type type)

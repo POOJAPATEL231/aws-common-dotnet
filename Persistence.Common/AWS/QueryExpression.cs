@@ -18,6 +18,9 @@ namespace Persistence.Common.AWS
 
         public bool IsScanIndexForward { get; private set; } = true; // True by default for ascending order
 
+        /// <summary>Global Secondary Index the query should target; null for the base table.</summary>
+        public string? IndexName { get; private set; }
+
         public int? Limit { get; private set; }
 
         public List<string>? ProjectionAttributes { get; private set; }
@@ -27,6 +30,13 @@ namespace Persistence.Common.AWS
         {
             KeyConditionExpression = $"{partitionKey} = :partitionKeyValue";
             ExpressionAttributeValues[":partitionKeyValue"] = new AttributeValue { S = partitionKeyValue };
+            return this;
+        }
+
+        // Method to target a Global Secondary Index explicitly
+        public QueryExpression<TEntity> WithIndex(string indexName)
+        {
+            IndexName = indexName;
             return this;
         }
 
@@ -86,6 +96,12 @@ namespace Persistence.Common.AWS
 
             if (keyConditionExpr is not null && keyConditionExpr.CanUseKeyFilter())
             {
+                // Carry over a GSI target detected during predicate translation.
+                if (!string.IsNullOrWhiteSpace(keyConditionExpr.IndexName) && string.IsNullOrWhiteSpace(IndexName))
+                {
+                    IndexName = keyConditionExpr.IndexName;
+                }
+
                 if (string.IsNullOrWhiteSpace(KeyConditionExpression))
                 {
                     KeyConditionExpression = keyConditionExpr.GenerateFinalKeyFilter();

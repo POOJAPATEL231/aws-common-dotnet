@@ -15,7 +15,10 @@ namespace Persistence.Common.AWS.Builder
         private readonly Dictionary<string, string> _aliases = new Dictionary<string, string>();
         private int _parameterCounter;
 
-        private static readonly IDynamoDBEntityBuilder? _entityConfiguration = InMemoryDynamoDBEntitiesConfiguration.GetConfiguration<T>();
+        // Resolved per builder instance (i.e. per query): a static readonly field would be
+        // frozen at first use of the closed generic type, permanently missing any
+        // configuration registered afterwards (an easy startup-ordering trap).
+        private readonly IDynamoDBEntityBuilder? _entityConfiguration = InMemoryDynamoDBEntitiesConfiguration.GetConfiguration<T>();
 
 
         [SuppressMessage("Maintainability", "S3242", Justification = "This function getting us for Bool expression only so don't want move to general type.")]
@@ -436,7 +439,7 @@ namespace Persistence.Common.AWS.Builder
             return null;
         }
 
-        private static string? GetJsonMemberName(string? parentName, string memberName)
+        private string? GetJsonMemberName(string? parentName, string memberName)
         {
             if (string.IsNullOrWhiteSpace(parentName))
             {
@@ -602,9 +605,93 @@ namespace Persistence.Common.AWS.Builder
 
             ResolvePartitionKeyFilter(keyProperties, keyFilters, primaryKeyParamName);
 
+            // If no usable base-table key condition was found, try to promote the query
+            // to a Global Secondary Index instead of falling back to a full Scan.
+            if (!string.IsNullOrWhiteSpace(filterExpression) &&
+                (string.IsNullOrWhiteSpace(keyFilters.PartitionKeyFilter) ||
+                 keyFilters.PartitionKeyFilter == Constants.DoNotUseKeyExpression))
+            {
+                filterExpression = TryUseSecondaryIndex(filterExpression, keyFilters);
+            }
+
             // Clean up the normal filter and ensure parentheses are balanced
             filterExpression = CleanUpFilter(filterExpression);
             return RemoveRedundantParentheses(filterExpression);
+        }
+
+        /// <summary>
+        /// Attempts to satisfy the query via a configured GSI: requires an equality
+        /// condition on the index partition key; optionally consumes a range-style
+        /// condition on the index sort key. On success the matched conditions move
+        /// from the filter into <paramref name="keyFilters"/> and IndexName is set.
+        /// </summary>
+        private string TryUseSecondaryIndex(string filterExpression, KeyFilter keyFilters)
+        {
+            var indexConfigurations = _entityConfiguration?.GetIndexConfigurations();
+            if (indexConfigurations is not { Count: > 0 })
+            {
+                return filterExpression;
+            }
+
+            var matches = Regex.Matches(filterExpression, GetFilterPattern(), RegexOptions.None, TimeSpan.FromSeconds(1));
+
+            foreach (var index in indexConfigurations)
+            {
+                var partitionAttribute = ResolveConfiguredAttributeName(index.PartitionKeyPropertyName);
+                var sortAttribute = index.SortKeyPropertyName is null ? null : ResolveConfiguredAttributeName(index.SortKeyPropertyName);
+
+                string? partitionCondition = null;
+                string? sortCondition = null;
+
+                foreach (Match match in matches)
+                {
+                    var (fieldName, operatorSymbol) = ExtractFieldNameAndOperatorFromMatch(match);
+
+                    if (partitionCondition is null && fieldName == partitionAttribute && operatorSymbol == "=")
+                    {
+                        partitionCondition = match.Value;
+                    }
+                    else if (sortCondition is null && sortAttribute is not null && fieldName == sortAttribute &&
+                             IsValidSortKeyOperator(operatorSymbol, match.Value))
+                    {
+                        sortCondition = match.Value;
+                    }
+                }
+
+                if (partitionCondition is not null)
+                {
+                    keyFilters.IndexName = index.IndexName;
+                    keyFilters.PartitionKeyFilter = partitionCondition;
+                    keyFilters.PrimaryKeyFilter = sortCondition ?? string.Empty;
+
+                    filterExpression = filterExpression.Replace(partitionCondition, "", StringComparison.OrdinalIgnoreCase);
+                    if (sortCondition is not null)
+                    {
+                        filterExpression = filterExpression.Replace(sortCondition, "", StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    return filterExpression;
+                }
+            }
+
+            return filterExpression;
+        }
+
+        private string ResolveConfiguredAttributeName(string propertyName)
+        {
+            var configuration = _entityConfiguration?
+                .GetPropertyConfigurations()
+                .Find(e => e.PropertyName == propertyName);
+
+            return configuration?.JsonPropertyName ?? propertyName;
+        }
+
+        private static bool IsValidSortKeyOperator(string operatorSymbol, string matchValue)
+        {
+            // Key conditions support =, <, <=, >, >=, BETWEEN and begins_with -
+            // but not IN, <>, contains or attribute_exists.
+            return operatorSymbol is "=" or "<" or "<=" or ">" or ">=" or "BETWEEN"
+                || matchValue.StartsWith("begins_with", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetFilterPattern()

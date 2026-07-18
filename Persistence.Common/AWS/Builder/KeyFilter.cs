@@ -5,6 +5,12 @@
         public string PartitionKeyFilter { get; set; }
         public string PrimaryKeyFilter { get; set; }
 
+        /// <summary>
+        /// When set, the key condition targets this Global Secondary Index and the
+        /// QueryRequest must carry it as <c>IndexName</c>. Null means the base table.
+        /// </summary>
+        public string? IndexName { get; set; }
+
         public KeyFilter()
         {
             PartitionKeyFilter = string.Empty;

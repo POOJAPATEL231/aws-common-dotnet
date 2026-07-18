@@ -68,6 +68,16 @@ namespace Domain.Common.Entities
             Id = id;
         }
 
+        /// <summary>
+        /// Sets the concurrency stamp. Intended for use by the persistence layer,
+        /// which rotates the ETag on every successful write and uses the previous
+        /// value as an optimistic-concurrency condition.
+        /// </summary>
+        public void SetETag(string? etag)
+        {
+            ETag = etag;
+        }
+
         // public void SetTTL(int ttl)
         // {
         //     TimeToLive = ttl;
