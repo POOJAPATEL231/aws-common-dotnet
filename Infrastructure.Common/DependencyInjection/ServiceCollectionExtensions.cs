@@ -154,7 +154,7 @@ namespace Infrastructure.Common.DependencyInjection
             services.AddScoped<IAsyncEventBusSubscriptionsManager, EventBusSubscriptionsManager>();
             services.AddSingleton<IEventBusSubscriptionsManager, InMemoryEventBusSubscriptionsManager>();
             services.AddScoped<IEventBus, AwsEventBus>();
-            services.AddScoped<AWS.Eventbus.IQueueService, SimpleQueueService>();
+            services.AddScoped<IQueueService, SimpleQueueService>();
             return services;
         }
 

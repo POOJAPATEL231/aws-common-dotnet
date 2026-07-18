@@ -153,9 +153,9 @@ public class SnsEventBusController : ControllerBase
 [Route("api/queue")]
 public class QueueController : ControllerBase
 {
-    private readonly Infrastructure.Common.AWS.Eventbus.IQueueService _queue;
+    private readonly Application.Common.Event.IQueueService _queue;
 
-    public QueueController(Infrastructure.Common.AWS.Eventbus.IQueueService queue) => _queue = queue;
+    public QueueController(Application.Common.Event.IQueueService queue) => _queue = queue;
 
     /// <summary>SendMessageAsync - single message; returns the SQS message id.</summary>
     [HttpPost("send")]
