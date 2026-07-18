@@ -240,10 +240,13 @@ namespace Infrastructure.Common.DependencyInjection
             return services;
         }
 
-        /// <summary>IDistributedCache-backed <see cref="ICache"/> (memory, Redis, SQL - whatever is registered).</summary>
+        /// <summary>
+        /// IDistributedCache-backed <see cref="ICache"/> (memory, Redis, SQL - whatever is
+        /// registered). Singleton so RemoveAllAsync's key tracking spans requests.
+        /// </summary>
         public static IServiceCollection AddDistributedCacheAdapter(this IServiceCollection services)
         {
-            services.AddScoped<ICache, Cache.Cache>();
+            services.AddSingleton<ICache, Cache.Cache>();
             return services;
         }
     }

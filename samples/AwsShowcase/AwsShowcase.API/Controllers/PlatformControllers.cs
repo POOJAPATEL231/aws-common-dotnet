@@ -148,6 +148,10 @@ public class SnsEventBusController : ControllerBase
     }
 }
 
+/// <summary>Payload for the direct-queue demo; its type name derives the queue
+/// ("showcasequeuemessage_queue.fifo") by the queue-service convention.</summary>
+public record ShowcaseQueueMessage(string Text, int Number);
+
 /// <summary>SQS queue service - every IQueueService method.</summary>
 [ApiController]
 [Route("api/queue")]
@@ -159,17 +163,17 @@ public class QueueController : ControllerBase
 
     /// <summary>SendMessageAsync - single message; returns the SQS message id.</summary>
     [HttpPost("send")]
-    public async Task<ActionResult<string>> Send([FromBody] object message, CancellationToken ct)
+    public async Task<ActionResult<string>> Send([FromBody] ShowcaseQueueMessage message, CancellationToken ct)
         => Ok(await _queue.SendMessageAsync(message, ct));
 
     /// <summary>SendMessagesAsync - ordered batch; returns the session id.</summary>
     [HttpPost("send-batch")]
-    public async Task<ActionResult<string>> SendBatch([FromBody] List<object> messages, CancellationToken ct)
+    public async Task<ActionResult<string>> SendBatch([FromBody] List<ShowcaseQueueMessage> messages, CancellationToken ct)
         => Ok(await _queue.SendMessagesAsync(messages, ct));
 
-    /// <summary>ScheduleMessageAsync - delayed delivery.</summary>
+    /// <summary>ScheduleMessageAsync - delayed delivery (standard queues; FIFO ignores per-message delay).</summary>
     [HttpPost("schedule")]
-    public async Task<ActionResult<string>> Schedule([FromBody] object message, [FromQuery] int delaySeconds = 30, CancellationToken ct = default)
+    public async Task<ActionResult<string>> Schedule([FromBody] ShowcaseQueueMessage message, [FromQuery] int delaySeconds = 30, CancellationToken ct = default)
         => Ok(await _queue.ScheduleMessageAsync(message, TimeSpan.FromSeconds(delaySeconds), ct));
 }
 

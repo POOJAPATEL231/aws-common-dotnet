@@ -107,74 +107,44 @@ namespace Persistence.Common.AWS.DependencyInjection
             using (var scope = app.ApplicationServices.CreateScope())
             {
                 var provider = scope.ServiceProvider;
-                var context = provider.GetRequiredService<TContext>();
+                // Resolve the context so misconfigured wiring fails at startup, not first request.
+                provider.GetRequiredService<TContext>();
                 // Ensure DynamoDB tables are created
-                await EnsureDynamoDbTablesCreatedAsync(context, provider, dynamoOptions);
+                await EnsureDynamoDbTablesCreatedAsync(provider, dynamoOptions);
             }
             return app;
         }
 
-        // Method to ensure tables are created for all entities using IDynamoDbTableProvider
-        private static async Task EnsureDynamoDbTablesCreatedAsync<TContext>(
-            TContext context,
+        /// <summary>
+        /// Creates every missing table for EVERY registered IDynamoDbTableProvider - not
+        /// just entities exposed as context properties. This matters for infrastructure
+        /// entities like the transactional OutboxMessage, whose provider is registered by
+        /// AddDynamoDbOutbox but which no context property references: reflecting over
+        /// context properties would silently skip its table and the first transactional
+        /// save that stages an outbox message would fail.
+        /// </summary>
+        internal static async Task EnsureDynamoDbTablesCreatedAsync(
             IServiceProvider serviceProvider,
             DynamoDbRepositoryOptions options,
             CancellationToken cancellationToken = default)
-            where TContext : BaseDynamoDbContext
         {
-            // Reflectively get all properties of type IDynamoDbSet<TEntity> from the context
-            var properties = context.GetType()
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(IDynamoDbSet<>));
+            var providers = serviceProvider.GetServices(typeof(IDynamoDbTableProvider)).OfType<IDynamoDbTableProvider>();
 
-            foreach (var property in properties)
+            foreach (var tableProvider in providers)
             {
-                // Get the entity type for the current IDynamoDbSet<TEntity>
-                var entityType = property.PropertyType.GenericTypeArguments[0];
-                // Get all services registered as IDynamoDbTableProvider
-                var allProviders = serviceProvider.GetServices(typeof(IDynamoDbTableProvider));
+                // Capacity overrides are matched by the provider's entity type name.
+                var entityName = tableProvider.GetType().GenericTypeArguments.FirstOrDefault()?.Name;
+                var entitySetting = options.DocEntitySettings?.FirstOrDefault(s => s.EntityName == entityName);
 
-                // Use LINQ to filter out the specific DynamoDbTableProvider<TEntity> based on TEntity
-                var provider = allProviders.FirstOrDefault(p =>
+                if (!await tableProvider.TableExistsAsync(cancellationToken))
                 {
-                    var providerType = p!.GetType();
-
-                    // Check if the provider is a generic type and if it's DynamoDbTableProvider<>
-                    if (providerType.IsGenericType && providerType.GetGenericTypeDefinition() == typeof(DynamoDbTableProvider<>))
-                    {
-                        // Get the type argument (TEntity) for the generic type and check if it matches the requested TEntity
-                        var type = providerType.GetGenericArguments()[0];
-                        return type == entityType;
-                    }
-
-                    return false;
-                });
-                var dynamoDbProvider = provider as IDynamoDbTableProvider;
-
-                if (dynamoDbProvider != null)
-                {
-                    // Check if the table exists and create it if it doesn't
-                    bool tableExists = await dynamoDbProvider.TableExistsAsync(cancellationToken);
-                    if (!tableExists)
-                    {
-                        var entityName = entityType.Name;
-
-                        // Try to find the matching entity setting in DocEntitySettings
-                        var entitySetting = options.DocEntitySettings?.FirstOrDefault(s => s.EntityName == entityName);
-
-                        // Set read and write capacity units based on whether the entity setting is found
-                        long readCapacityUnits = entitySetting?.ReadCapacityUnits ?? options.ReadCapacityUnits;
-                        long writeCapacityUnits = entitySetting?.WriteCapacityUnits ?? options.WriteCapacityUnits;
-
-                        // Create the table using the capacity units from either DocEntitySettings or global options
-                        await dynamoDbProvider.CreateTableAsync(
-                            readCapacityUnits: readCapacityUnits,
-                            writeCapacityUnits: writeCapacityUnits,
-                            cancellationToken: cancellationToken
-                        );
-                    }
-                    await dynamoDbProvider.EnableTtlAsync(cancellationToken);
+                    await tableProvider.CreateTableAsync(
+                        readCapacityUnits: entitySetting?.ReadCapacityUnits ?? options.ReadCapacityUnits,
+                        writeCapacityUnits: entitySetting?.WriteCapacityUnits ?? options.WriteCapacityUnits,
+                        cancellationToken: cancellationToken);
                 }
+
+                await tableProvider.EnableTtlAsync(cancellationToken);
             }
         }
     }

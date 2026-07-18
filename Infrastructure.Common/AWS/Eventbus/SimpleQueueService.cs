@@ -77,13 +77,27 @@ namespace Infrastructure.Common.AWS.Eventbus
 
         private AwsEventBusQueueOptions GetQueueSetting(string messageType)
         {
-            if (!_awsEventBusQueues.TryGetValue(messageType, out var queueOptions))
+            // 1. Explicit configuration keyed by message type.
+            if (_awsEventBusQueues.TryGetValue(messageType, out var queueOptions))
             {
-                _logger.LogError("Queue configuration not found for message type: {MessageType}", messageType);
-                throw new KeyNotFoundException($"Queue configuration not found for message type: {messageType}");
+                return queueOptions;
             }
 
-            return queueOptions;
+            // 2. Configuration whose QueueName matches the message-type convention
+            //    (covers configs keyed by queue name, as the event bus uses).
+            var conventionQueueName = $"{messageType.ToLowerInvariant()}_queue.fifo";
+            var byQueueName = _awsEventBusQueues.Values.FirstOrDefault(q =>
+                string.Equals(q.QueueName, conventionQueueName, StringComparison.OrdinalIgnoreCase));
+            if (byQueueName is not null)
+            {
+                return byQueueName;
+            }
+
+            // 3. Sensible defaults with a convention-named queue, so unconfigured message
+            //    types work out of the box instead of throwing.
+            _logger.LogInformation("No queue configuration for {MessageType}; using defaults with queue {Queue}.",
+                messageType, conventionQueueName);
+            return Constants.DefaultAwsEventBusQueueOptions with { QueueName = conventionQueueName };
         }
 
         private async Task<string> GetQueueUrlAsync(AwsEventBusQueueOptions queueSetting, CancellationToken cancellationToken)
@@ -305,7 +319,6 @@ namespace Infrastructure.Common.AWS.Eventbus
 
                 var sendMessageRequest = new SendMessageRequest
                 {
-                    DelaySeconds = delaySeconds ?? 0,
                     MessageBody = messageBody,
                     QueueUrl = queueUrl,
                     MessageAttributes = new Dictionary<string, MessageAttributeValue>
@@ -313,6 +326,22 @@ namespace Infrastructure.Common.AWS.Eventbus
                         { "Subject", new MessageAttributeValue { StringValue = messageType, DataType = "String" } },
                     }
                 };
+
+                if (queueSetting.QueueName.EndsWith(".fifo", StringComparison.OrdinalIgnoreCase))
+                {
+                    // FIFO queues REQUIRE a MessageGroupId (grouping by message type keeps
+                    // per-type ordering) and reject per-message DelaySeconds.
+                    sendMessageRequest.MessageGroupId = messageType;
+                    sendMessageRequest.MessageDeduplicationId = Guid.NewGuid().ToString("N");
+                    if (delaySeconds is > 0)
+                    {
+                        _logger.LogWarning("Per-message delay is not supported on FIFO queue {Queue}; sending without delay.", queueSetting.QueueName);
+                    }
+                }
+                else
+                {
+                    sendMessageRequest.DelaySeconds = delaySeconds ?? 0;
+                }
 
                 var response = await _sqsClient.SendMessageAsync(sendMessageRequest, cancellationToken);
                 return response.HttpStatusCode == HttpStatusCode.OK ? response.MessageId : string.Empty;
